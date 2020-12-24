@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "aksdemo-a990"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "aksdemo-a990"
+  template:
+    metadata:
+      labels:
+        app: "aksdemo-a990"
+    spec:
+      containers:
+        - name: "aksdemo-a990"
+          image: "eshopcontainervijay.azurecr.io/aksdemo"
+          ports:
+          - containerPort: 80
