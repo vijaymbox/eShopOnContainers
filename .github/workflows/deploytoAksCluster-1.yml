@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: eshopcontainervijay.azurecr.io
+        username: ${{ secrets.acr_eshopcontainervijay_username }}
+        password: ${{ secrets.acr_eshopcontainervijay_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/elk/elasticsearch" -f  "elk/elasticsearch/Dockerfile" -t eshopcontainervijay.azurecr.io/aksdemo:${{ github.sha }}
+        docker push eshopcontainervijay.azurecr.io/aksdemo:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_aksdemo_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep aks-demo8c47 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace aks-demo8c47`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: aks-demo8c47
+        container-registry-url: eshopcontainervijay.azurecr.io
+        container-registry-username: ${{ secrets.acr_eshopcontainervijay_username }}
+        container-registry-password: ${{ secrets.acr_eshopcontainervijay_password }}
+        secret-name: aksdemodockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: aks-demo8c47
+        manifests: |
+          manifests/deployment-1.yml
+          manifests/service-1.yml
+        images: |
+          eshopcontainervijay.azurecr.io/aksdemo:${{ github.sha }}
+        imagepullsecrets: |
+          aksdemodockerauth
